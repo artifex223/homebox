@@ -12,6 +12,7 @@ RUN pnpm install --frozen-lockfile
 # Build Nuxt (frontend) stage
 FROM public.ecr.aws/docker/library/node:22-alpine AS frontend-builder
 WORKDIR /app
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Install pnpm 10 (latest stable)
 RUN npm install -g pnpm@10
