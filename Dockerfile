@@ -55,8 +55,7 @@ RUN rm -rf ./app/api/public
 COPY --from=frontend-builder /app/.output/public ./app/api/static/public
 
 # Use cache for Go build artifacts
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    if [ "$TARGETARCH" = "arm" ] || [ "$TARGETARCH" = "riscv64" ];  \
+RUN if [ "$TARGETARCH" = "arm" ] || [ "$TARGETARCH" = "riscv64" ];  \
     then echo "nodynamic" $TARGETOS $TARGETARCH; CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
         -ldflags "-s -w -X main.commit=$COMMIT -X main.buildTime=$BUILD_TIME -X main.version=$VERSION" \
         -tags nodynamic -o /go/bin/api -v ./app/api/*.go; \
