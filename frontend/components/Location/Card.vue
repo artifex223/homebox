@@ -1,3 +1,4 @@
+<!-- Location Card component with image thumbnail support -->
 <template>
   <Card class="relative overflow-hidden">
     <NuxtLink :to="`/location/${location.id}`" class="group/location-card transition duration-300">
