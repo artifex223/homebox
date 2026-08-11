@@ -59,6 +59,35 @@
     return data;
   });
 
+  const { data: pathItems } = useAsyncData(
+    () => locationId.value + "_fullpath",
+    async () => {
+      if (!locationId.value) return [];
+      const { data, error } = await api.items.fullpath(locationId.value);
+      if (error) return [];
+      return data;
+    },
+    { watch: [locationId] }
+  );
+
+  // Map breadcrumb trail to include root "Locations" and ancestors
+  const breadcrumbs = computed(() => {
+    const list = [{ name: "Locations", path: "/locations" }];
+    if (pathItems.value) {
+      // Only display locations in the parent path, exclude any item leaf nodes
+      const locationsPath = pathItems.value.filter(
+        p => p.type === "location" && p.id !== locationId.value
+      );
+      for (const node of locationsPath) {
+        list.push({
+          name: node.name,
+          path: `/location/${node.id}`,
+        });
+      }
+    }
+    return list;
+  });
+
   const confirm = useConfirm();
 
   async function confirmDelete() {
@@ -251,17 +280,19 @@
               <MdiPackageVariant class="size-7" />
             </div>
             <div>
-              <Breadcrumb v-if="location?.parent">
+              <Breadcrumb v-if="breadcrumbs.length > 0">
                 <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink as-child class="text-foreground/70 hover:underline">
-                      <NuxtLink :to="`/location/${location.parent.id}`">
-                        {{ location.parent.name }}
-                      </NuxtLink>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem> {{ location.name }} </BreadcrumbItem>
+                  <template v-for="(bc, index) in breadcrumbs" :key="index">
+                    <BreadcrumbItem>
+                      <BreadcrumbLink as-child class="text-foreground/70 hover:underline">
+                        <NuxtLink :to="bc.path">
+                          {{ bc.name }}
+                        </NuxtLink>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                  </template>
+                  <BreadcrumbItem class="text-foreground font-medium"> {{ location.name }} </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
               <h1 class="flex items-center gap-3 pb-1 text-2xl">
