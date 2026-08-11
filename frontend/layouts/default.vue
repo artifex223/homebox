@@ -440,6 +440,21 @@
       to: "/locations",
     },
     {
+      icon: MdiFolderUpload,
+      id: 8,
+      active: computed(() => false),
+      name: computed(() => t("menu.bulk_import")),
+      to: "/capture/#/capture",
+    },
+    {
+      icon: MdiInboxArrowDown,
+      id: 9,
+      active: computed(() => false),
+      name: computed(() => t("menu.triage_queue")),
+      to: "/capture/#/triage",
+      badge: triageCount,
+    },
+    {
       icon: MdiTagMultiple,
       id: 2,
       active: computed(() => route.path === "/tags"),
@@ -518,21 +533,6 @@
           to: "/collection/tools",
         },
       ],
-    },
-    {
-      icon: MdiFolderUpload,
-      id: 8,
-      active: computed(() => false),
-      name: computed(() => t("menu.bulk_import")),
-      to: "/capture/#/capture",
-    },
-    {
-      icon: MdiInboxArrowDown,
-      id: 9,
-      active: computed(() => false),
-      name: computed(() => t("menu.triage_queue")),
-      to: "/capture/#/triage",
-      badge: triageCount,
     },
   ];
 

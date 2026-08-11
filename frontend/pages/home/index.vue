@@ -26,7 +26,7 @@
   const breakpoints = useBreakpoints();
 
   const locationStore = useLocationStore();
-  const locations = computed(() => locationStore.parentLocations);
+  const locations = computed(() => locationStore.parentLocations.filter(l => l.name !== "00 Inbox"));
 
   const tagsStore = useTagStore();
   const tags = computed(() => tagsStore.tags);
