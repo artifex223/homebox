@@ -88,13 +88,18 @@
     if (!tree.value) return [];
     // Return only top-level items that are locations, mapping them to look like EntitySummary
     return tree.value
-      .filter(item => item.type === "location")
+      .filter(item => item.type === "location" && item.name !== "00 Inbox")
       .map(item => ({
         id: item.id,
         name: item.name,
         // Map tree children to count items vs sub-locations
         itemCount: item.children ? item.children.filter(c => c.type === "item").length : 0,
       }));
+  });
+
+  const filteredTree = computed(() => {
+    if (!tree.value) return [];
+    return tree.value.filter(item => item.name !== "00 Inbox");
   });
 </script>
 
@@ -150,8 +155,8 @@
     <BaseCard v-else>
       <div class="p-2">
         <LocationTreeRoot
-          v-if="tree && Array.isArray(tree)"
-          :locs="tree"
+          v-if="filteredTree && filteredTree.length"
+          :locs="filteredTree"
           :tree-id="locationTreeId"
           :show-items="showItems"
         />
