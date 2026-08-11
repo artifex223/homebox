@@ -88,7 +88,15 @@
                     :tooltip="n.name.value"
                   >
                     <component :is="n.icon" />
-                    <span>{{ n.name.value }}</span>
+                    <span class="flex flex-1 items-center justify-between">
+                      <span>{{ n.name.value }}</span>
+                      <span
+                        v-if="n.badge && n.badge.value > 0"
+                        class="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground"
+                      >
+                        {{ n.badge.value }}
+                      </span>
+                    </span>
                   </SidebarMenuLink>
                 </SidebarMenuItem>
 
@@ -253,6 +261,8 @@
   import MdiLogout from "~icons/mdi/logout";
   import MdiFileDocumentMultiple from "~icons/mdi/file-document-multiple";
   import MdiChevronRight from "~icons/mdi/chevron-right";
+  import MdiFolderUpload from "~icons/mdi/folder-upload";
+  import MdiInboxArrowDown from "~icons/mdi/inbox-arrow-down";
 
   import {
     Sidebar,
@@ -307,6 +317,22 @@
   const { openDialog } = useDialog();
 
   const preferences = useViewPreferences();
+
+  const triageCount = ref(0);
+
+  const syncTriageCount = () => {
+    const cached = localStorage.getItem("homebox/triage/count");
+    triageCount.value = cached ? parseInt(cached, 10) : 0;
+  };
+
+  onMounted(() => {
+    syncTriageCount();
+    window.addEventListener("storage", (e) => {
+      if (e.key === "homebox/triage/count") {
+        syncTriageCount();
+      }
+    });
+  });
 
   // get sidebar state from cookies
   const sidebarState = useCookie("sidebar:state", {
@@ -391,6 +417,7 @@
     id: number;
     name: ComputedRef<string>;
     to: string;
+    badge?: Ref<number>;
     collapsible?: {
       active: ComputedRef<boolean>;
       id: number;
@@ -491,6 +518,21 @@
           to: "/collection/tools",
         },
       ],
+    },
+    {
+      icon: MdiFolderUpload,
+      id: 8,
+      active: computed(() => false),
+      name: computed(() => t("menu.bulk_import")),
+      to: "/capture/#/capture",
+    },
+    {
+      icon: MdiInboxArrowDown,
+      id: 9,
+      active: computed(() => false),
+      name: computed(() => t("menu.triage_queue")),
+      to: "/capture/#/triage",
+      badge: triageCount,
     },
   ];
 

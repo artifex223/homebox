@@ -767,6 +767,7 @@
         "total_entries": "Total Entries"
     },
     "menu": {
+        "bulk_import": "Bulk Import",
         "collection": "Collection",
         "create_item": "Item / Asset",
         "create_location": "Location",
@@ -777,7 +778,8 @@
         "profile": "Profile",
         "scanner": "Scanner",
         "search": "Search",
-        "templates": "Templates"
+        "templates": "Templates",
+        "triage_queue": "Triage Queue"
     },
     "pages": {
         "templates": {
