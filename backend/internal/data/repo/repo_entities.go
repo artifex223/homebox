@@ -440,7 +440,12 @@ func (r *EntityRepository) getOneTx(ctx context.Context, tx *ent.Tx, where ...pr
 		WithEntityType().
 		WithGroup().
 		WithChildren(func(eq *ent.EntityQuery) {
-			eq.WithEntityType()
+			eq.WithEntityType().WithAttachments(func(aq *ent.AttachmentQuery) {
+				aq.Where(
+					attachment.Primary(true),
+				)
+				aq.WithThumbnail()
+			})
 		}).
 		WithAttachments().
 		Only(ctx)
