@@ -27,6 +27,7 @@ export enum DialogID {
   Import = "import",
   ItemImage = "item-image",
   ItemTableSettings = "item-table-settings",
+  NelkoLabel = "nelko-label",
   PrintLabel = "print-label",
   ProductImport = "product-import",
   QuickMenu = "quick-menu",

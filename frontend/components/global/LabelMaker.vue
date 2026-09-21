@@ -6,7 +6,9 @@
   import { toast } from "@/components/ui/sonner";
   import MdiLoading from "~icons/mdi/loading";
   import MdiPrinterPos from "~icons/mdi/printer-pos";
+  import MdiPrinterPosStar from "~icons/mdi/printer-pos-star";
   import MdiFileDownload from "~icons/mdi/file-download";
+  import NelkoLabelModal from "./NelkoLabelModal.vue";
 
   import {
     Dialog,
@@ -124,6 +126,8 @@
       </DialogContent>
     </Dialog>
 
+    <NelkoLabelModal :id="props.id" :type="props.type" />
+
     <TooltipProvider :delay-duration="0">
       <ButtonGroup>
         <Button variant="outline" disabled class="disabled:opacity-100">
@@ -149,6 +153,17 @@
           </TooltipTrigger>
           <TooltipContent>
             {{ $t("components.global.label_maker.browser_print") }}
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button size="icon" @click="openDialog(DialogID.NelkoLabel)">
+              <MdiPrinterPosStar name="mdi-printer-pos-star" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {{ $t("components.global.label_maker.nelko_print") }}
           </TooltipContent>
         </Tooltip>
 
