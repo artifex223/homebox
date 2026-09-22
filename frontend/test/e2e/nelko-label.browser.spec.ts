@@ -85,8 +85,10 @@ test.beforeAll(async () => {
       lib: { entry, name: "Nelko", formats: ["iife"], fileName: () => "nelko.js" },
     },
   });
-  const output = Array.isArray(result) ? result[0].output : (result as { output: { code: string }[] }).output;
-  bundle = output[0].code;
+  // Vite's build() returns a single RollupOutput unless multiple outputs were
+  // configured, which this single lib-mode build never does.
+  const output = Array.isArray(result) ? result[0]!.output : (result as { output: { code: string }[] }).output;
+  bundle = output[0]!.code;
 });
 
 interface RenderResult {
@@ -135,7 +137,7 @@ async function renderInBrowser(page: import("@playwright/test").Page, spec: Labe
       URL.revokeObjectURL(url);
       const rawData = probeCtx.getImageData(0, 0, width, height).data;
       const greyBefore = new Set<number>();
-      for (let i = 0; i < rawData.length; i += 4) greyBefore.add(rawData[i]);
+      for (let i = 0; i < rawData.length; i += 4) greyBefore.add(rawData[i]!);
 
       // Production path: rasterize, binarize and paint back into the preview canvas.
       const { imageData, plane } = await Nelko.renderLabelToCanvas(canvas, svg);
@@ -247,19 +249,20 @@ test.describe("Nelko label client-side rendering", () => {
   }
 
   test("a deep ancestry trail is collapsed rather than clipped", async ({ page }) => {
-    const result = await renderInBrowser(page, SPECS[1].spec);
+    // SPECS is a fixed 5-entry literal above, so index 1 is always present.
+    const result = await renderInBrowser(page, SPECS[1]!.spec);
     expect(result.layout.breadcrumb).toContain("…");
     expect(result.layout.breadcrumb.startsWith("HOUSE")).toBe(true);
   });
 
   test("a shallow ancestry trail is printed in full", async ({ page }) => {
-    const result = await renderInBrowser(page, SPECS[0].spec);
+    const result = await renderInBrowser(page, SPECS[0]!.spec);
     expect(result.layout.breadcrumb).toBe("GARAGE > WORKBENCH");
   });
 
   test("changing the icon changes the rendered raster", async ({ page }) => {
-    const base = await renderInBrowser(page, SPECS[0].spec);
-    const swapped = await renderInBrowser(page, { ...SPECS[0].spec, icon: "mdi:server" });
+    const base = await renderInBrowser(page, SPECS[0]!.spec);
+    const swapped = await renderInBrowser(page, { ...SPECS[0]!.spec, icon: "mdi:server" });
     expect(swapped.layout.iconSlug).toBe("server");
     expect(swapped.plane).not.toEqual(base.plane);
   });
@@ -267,13 +270,13 @@ test.describe("Nelko label client-side rendering", () => {
   test("a canvas fed the label SVG is never tainted", async ({ page }) => {
     // renderInBrowser calls getImageData, which throws on a tainted canvas,
     // so reaching an assertion at all proves the SVG stayed self-contained.
-    const result = await renderInBrowser(page, SPECS[0].spec);
+    const result = await renderInBrowser(page, SPECS[0]!.spec);
     expect(result.plane.length).toBe(LABEL_WIDTH * LABEL_HEIGHT);
   });
 
   test("the rendered raster is byte-identical across renders", async ({ page }) => {
-    const first = await renderInBrowser(page, SPECS[0].spec);
-    const second = await renderInBrowser(page, SPECS[0].spec);
+    const first = await renderInBrowser(page, SPECS[0]!.spec);
+    const second = await renderInBrowser(page, SPECS[0]!.spec);
     expect(second.plane).toEqual(first.plane);
     expect(second.pngBytes).toEqual(first.pngBytes);
   });

@@ -17,7 +17,8 @@ describe("MDI_PATHS", () => {
   test("every path is non-empty and starts with a move command", () => {
     for (const [slug, path] of Object.entries(MDI_PATHS)) {
       expect(path.length, slug).toBeGreaterThan(10);
-      expect(path.trimStart()[0].toLowerCase(), slug).toBe("m");
+      // The prior assertion guarantees path is non-empty, so trimStart()[0] exists.
+      expect(path.trimStart()[0]!.toLowerCase(), slug).toBe("m");
     }
   });
 

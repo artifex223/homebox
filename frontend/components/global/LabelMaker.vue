@@ -43,6 +43,9 @@
   });
 
   const serverPrinting = ref(false);
+  // Read via `.value` in script rather than optional-chaining the ref
+  // directly in the template, which vue-tsc cannot type-narrow through.
+  const labelPrintingAvailable = computed(() => status.value?.labelPrinting ?? false);
 
   function browserPrint() {
     const printWindow = window.open(getLabelUrl(false), "popup=true");
@@ -114,7 +117,7 @@
         <img :src="getLabelUrl(false)" />
         <DialogFooter>
           <ButtonGroup>
-            <Button v-if="status?.labelPrinting || false" type="submit" :disabled="serverPrinting" @click="serverPrint">
+            <Button v-if="labelPrintingAvailable" type="submit" :disabled="serverPrinting" @click="serverPrint">
               <MdiLoading v-if="serverPrinting" class="animate-spin" />
               {{ $t("components.global.label_maker.server_print") }}
             </Button>

@@ -113,7 +113,8 @@
         // An asset label is addressed by asset id; resolve it to the entity.
         const { data, error } = await api.assets.get(props.id, 1, 1);
         if (error || !data?.items?.length) throw new Error("asset-not-found");
-        targetId = data.items[0].id;
+        // The length check above guarantees a first element.
+        targetId = data.items[0]!.id;
       }
 
       const { data, error } = await api.items.get(targetId);

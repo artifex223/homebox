@@ -274,26 +274,35 @@ const LOG_TABLE = new Uint8Array(256);
     }
   }
   for (let i = 255; i < 512; i++) {
-    EXP_TABLE[i] = EXP_TABLE[i - 255];
+    // EXP_TABLE[i - 255] was set either by the first loop (i - 255 < 255)
+    // or by an earlier iteration of this same loop (i - 255 >= 255).
+    EXP_TABLE[i] = EXP_TABLE[i - 255]!;
   }
 })();
 
 function gfMultiply(x: number, y: number): number {
   if (x === 0 || y === 0) return 0;
-  return EXP_TABLE[LOG_TABLE[x] + LOG_TABLE[y]];
+  // x, y are always valid GF(256) elements (1..255) here, so LOG_TABLE[x]/[y]
+  // (populated for every nonzero byte value by initGF) and the resulting
+  // EXP_TABLE lookup (mod-511-safe via the doubled table) are always defined.
+  return EXP_TABLE[LOG_TABLE[x]! + LOG_TABLE[y]!]!;
 }
 
 // Reed-Solomon generator polynomial
 const RS_GENERATORS: Record<number, number[]> = {};
 function getRsGenerator(degree: number): number[] {
-  if (RS_GENERATORS[degree]) return RS_GENERATORS[degree];
+  if (RS_GENERATORS[degree]) return RS_GENERATORS[degree]!;
   let poly: number[] = [1];
   for (let i = 0; i < degree; i++) {
-    const factor = [1, EXP_TABLE[i]];
+    // i < degree <= 30 (max ecCodewordsPerBlock), well within EXP_TABLE's 512 entries.
+    const factor: [number, number] = [1, EXP_TABLE[i]!];
     const nextPoly = new Uint8Array(poly.length + 1);
     for (let j = 0; j < poly.length; j++) {
-      nextPoly[j] ^= gfMultiply(poly[j], factor[0]);
-      nextPoly[j + 1] ^= gfMultiply(poly[j], factor[1]);
+      // j ranges over poly's own indices, so poly[j] is always defined.
+      const polyJ = poly[j]!;
+      // j and j+1 are both within nextPoly's length (poly.length + 1).
+      nextPoly[j] = nextPoly[j]! ^ gfMultiply(polyJ, factor[0]);
+      nextPoly[j + 1] = nextPoly[j + 1]! ^ gfMultiply(polyJ, factor[1]);
     }
     poly = Array.from(nextPoly);
   }
@@ -305,11 +314,13 @@ function computeReedSolomon(data: Uint8Array, ecCount: number): Uint8Array {
   const generator = getRsGenerator(ecCount);
   const remainder = new Uint8Array(ecCount);
   for (let i = 0; i < data.length; i++) {
-    const factor = data[i] ^ remainder[0];
+    // i < data.length, and remainder has ecCount >= 1 entries.
+    const factor = data[i]! ^ remainder[0]!;
     for (let j = 0; j < ecCount - 1; j++) {
-      remainder[j] = remainder[j + 1] ^ gfMultiply(generator[j + 1], factor);
+      // j+1 < ecCount, within both remainder and generator (length ecCount+1) bounds.
+      remainder[j] = remainder[j + 1]! ^ gfMultiply(generator[j + 1]!, factor);
     }
-    remainder[ecCount - 1] = gfMultiply(generator[ecCount], factor);
+    remainder[ecCount - 1] = gfMultiply(generator[ecCount]!, factor);
   }
   return remainder;
 }
@@ -337,9 +348,20 @@ function getVersionBits(version: number): number {
   return (version << 12) | bch;
 }
 
-function getDataCapacity(version: number, ecl: ErrorCorrectionLevel): number {
+// EC_SPECS[ecl] is indexed directly by version (index 0 is an unused
+// placeholder), so a valid lookup always yields the 5-element
+// [ecCodewordsPerBlock, numBlocksG1, dataCodewordsG1, numBlocksG2, dataCodewordsG2] tuple.
+function getEcSpec(ecl: ErrorCorrectionLevel, version: number): number[] {
   const spec = EC_SPECS[ecl][version];
-  return spec[1] * spec[2] + spec[3] * spec[4];
+  if (!spec || spec.length < 5) {
+    throw new Error(`Unsupported QR Code version: ${version}`);
+  }
+  return spec;
+}
+
+function getDataCapacity(version: number, ecl: ErrorCorrectionLevel): number {
+  const spec = getEcSpec(ecl, version);
+  return spec[1]! * spec[2]! + spec[3]! * spec[4]!;
 }
 
 function selectMinVersion(byteCount: number, ecl: ErrorCorrectionLevel, minV = 1, maxV = 40): number {
@@ -388,7 +410,8 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
 
   // Payload bytes
   for (let i = 0; i < rawBytes.length; i++) {
-    pushBits(rawBytes[i], 8);
+    // i < rawBytes.length, so this element is always present.
+    pushBits(rawBytes[i]!, 8);
   }
 
   const totalDataBytes = getDataCapacity(version, ecl);
@@ -404,10 +427,11 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
   }
 
   // Pad bytes (0xEC, 0x11)
-  const padBytes = [0xec, 0x11];
+  const padBytes: [number, number] = [0xec, 0x11];
   let padIdx = 0;
   while (bitBuffer.length < totalDataBits) {
-    pushBits(padBytes[padIdx % 2], 8);
+    // padIdx % 2 is always 0 or 1, both valid indices into the 2-element tuple.
+    pushBits(padBytes[padIdx % 2]!, 8);
     padIdx++;
   }
 
@@ -416,18 +440,21 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
   for (let i = 0; i < totalDataBytes; i++) {
     let b = 0;
     for (let j = 0; j < 8; j++) {
-      b = (b << 1) | bitBuffer[i * 8 + j];
+      // The terminator/padding logic above always fills bitBuffer to
+      // exactly totalDataBits (== totalDataBytes * 8) entries, so every
+      // i*8+j index up to that length is present.
+      b = (b << 1) | bitBuffer[i * 8 + j]!;
     }
     dataBytes[i] = b;
   }
 
   // Split into blocks and calculate Reed-Solomon EC
-  const spec = EC_SPECS[ecl][version];
-  const ecCodewordsPerBlock = spec[0];
-  const numBlocksG1 = spec[1];
-  const dataCodewordsG1 = spec[2];
-  const numBlocksG2 = spec[3];
-  const dataCodewordsG2 = spec[4];
+  const spec = getEcSpec(ecl, version);
+  const ecCodewordsPerBlock = spec[0]!;
+  const numBlocksG1 = spec[1]!;
+  const dataCodewordsG1 = spec[2]!;
+  const numBlocksG2 = spec[3]!;
+  const dataCodewordsG2 = spec[4]!;
   const totalBlocks = numBlocksG1 + numBlocksG2;
 
   const dataBlocks: Uint8Array[] = [];
@@ -448,8 +475,10 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
   const maxDataCodewords = Math.max(dataCodewordsG1, dataCodewordsG2);
   for (let i = 0; i < maxDataCodewords; i++) {
     for (let b = 0; b < totalBlocks; b++) {
-      if (i < dataBlocks[b].length) {
-        finalCodewords.push(dataBlocks[b][i]);
+      // b < totalBlocks === dataBlocks.length, which was filled above.
+      const block = dataBlocks[b]!;
+      if (i < block.length) {
+        finalCodewords.push(block[i]!);
       }
     }
   }
@@ -457,7 +486,8 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
   // Interleave EC codewords
   for (let i = 0; i < ecCodewordsPerBlock; i++) {
     for (let b = 0; b < totalBlocks; b++) {
-      finalCodewords.push(ecBlocks[b][i]);
+      // b < totalBlocks === ecBlocks.length, which was filled above.
+      finalCodewords.push(ecBlocks[b]![i]!);
     }
   }
 
@@ -468,8 +498,13 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
   const isFunction: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
 
   function setFunctionModule(r: number, c: number, isDark: boolean) {
-    modules[r][c] = isDark;
-    isFunction[r][c] = true;
+    const moduleRow = modules[r];
+    const functionRow = isFunction[r];
+    if (!moduleRow || !functionRow || c < 0 || c >= moduleRow.length) {
+      throw new Error(`QR module coordinate out of bounds: (${r}, ${c})`);
+    }
+    moduleRow[c] = isDark;
+    functionRow[c] = true;
   }
 
   // Finder Patterns
@@ -493,11 +528,14 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
   drawFinderPattern(size - 7, 0);
 
   // Alignment Patterns
-  const alignCoords = ALIGNMENT_PATTERN_TABLE[version - 1];
+  // version is always 1..40 (validated by getEcSpec/selectMinVersion), and
+  // the table has exactly 40 rows, so this lookup is always defined.
+  const alignCoords = ALIGNMENT_PATTERN_TABLE[version - 1]!;
   for (let i = 0; i < alignCoords.length; i++) {
     for (let j = 0; j < alignCoords.length; j++) {
-      const ar = alignCoords[i];
-      const ac = alignCoords[j];
+      // i, j range over alignCoords' own indices.
+      const ar = alignCoords[i]!;
+      const ac = alignCoords[j]!;
       // Skip if overlapping finder patterns
       if ((ar <= 8 && ac <= 8) || (ar <= 8 && ac >= size - 8) || (ar >= size - 8 && ac <= 8)) {
         continue;
@@ -513,33 +551,36 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
 
   // Timing Patterns
   for (let i = 8; i < size - 8; i++) {
-    if (!isFunction[6][i]) setFunctionModule(6, i, i % 2 === 0);
-    if (!isFunction[i][6]) setFunctionModule(i, 6, i % 2 === 0);
+    // i < size, so row 6 / column 6 exist for both matrices.
+    if (!isFunction[6]![i]) setFunctionModule(6, i, i % 2 === 0);
+    if (!isFunction[i]![6]) setFunctionModule(i, 6, i % 2 === 0);
   }
 
   // Dark module (always at row 4*V + 9, col 8)
   setFunctionModule(4 * version + 9, 8, true);
 
   // Reserve Format Info areas
+  // i stays within 0..size-1 in both loops below, so row 8 / row i and
+  // column 8 always exist.
   for (let i = 0; i <= 8; i++) {
-    if (!isFunction[8][i]) isFunction[8][i] = true;
-    if (!isFunction[i][8]) isFunction[i][8] = true;
+    if (!isFunction[8]![i]) isFunction[8]![i] = true;
+    if (!isFunction[i]![8]) isFunction[i]![8] = true;
   }
   for (let i = size - 8; i < size; i++) {
-    if (!isFunction[8][i]) isFunction[8][i] = true;
-    if (!isFunction[i][8]) isFunction[i][8] = true;
+    if (!isFunction[8]![i]) isFunction[8]![i] = true;
+    if (!isFunction[i]![8]) isFunction[i]![8] = true;
   }
 
   // Reserve Version Info areas (V >= 7)
   if (version >= 7) {
     for (let r = 0; r < 6; r++) {
       for (let c = size - 11; c < size - 8; c++) {
-        isFunction[r][c] = true;
+        isFunction[r]![c] = true;
       }
     }
     for (let r = size - 11; r < size - 8; r++) {
       for (let c = 0; c < 6; c++) {
-        isFunction[r][c] = true;
+        isFunction[r]![c] = true;
       }
     }
   }
@@ -565,8 +606,9 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
     }
     for (const r of rows) {
       for (const c of cols) {
-        if (!isFunction[r][c]) {
-          modules[r][c] = bitIdx < dataBits.length ? dataBits[bitIdx++] === 1 : false;
+        // r, c are always within 0..size-1 by construction of `rows`/`cols`.
+        if (!isFunction[r]![c]) {
+          modules[r]![c] = bitIdx < dataBits.length ? dataBits[bitIdx++] === 1 : false;
         }
       }
     }
@@ -589,16 +631,18 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
   function evaluatePenalty(grid: boolean[][]): number {
     let penalty = 0;
     // Rule 1: 5 or more same color in a row/column
+    // r/c stay within 0..size-1 throughout, matching the grid's own dimensions.
     for (let r = 0; r < size; r++) {
+      const row = grid[r]!;
       let count = 0;
       let last: boolean | null = null;
       for (let c = 0; c < size; c++) {
-        if (grid[r][c] === last) {
+        if (row[c] === last) {
           count++;
           if (count === 5) penalty += 3;
           else if (count > 5) penalty += 1;
         } else {
-          last = grid[r][c];
+          last = row[c]!;
           count = 1;
         }
       }
@@ -607,12 +651,12 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
       let count = 0;
       let last: boolean | null = null;
       for (let r = 0; r < size; r++) {
-        if (grid[r][c] === last) {
+        if (grid[r]![c] === last) {
           count++;
           if (count === 5) penalty += 3;
           else if (count > 5) penalty += 1;
         } else {
-          last = grid[r][c];
+          last = grid[r]![c]!;
           count = 1;
         }
       }
@@ -621,8 +665,8 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
     // Rule 2: 2x2 blocks of same color
     for (let r = 0; r < size - 1; r++) {
       for (let c = 0; c < size - 1; c++) {
-        const val = grid[r][c];
-        if (val === grid[r + 1][c] && val === grid[r][c + 1] && val === grid[r + 1][c + 1]) {
+        const val = grid[r]![c]!;
+        if (val === grid[r + 1]![c] && val === grid[r]![c + 1] && val === grid[r + 1]![c + 1]) {
           penalty += 3;
         }
       }
@@ -630,19 +674,12 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
 
     // Rule 3: 1:1:3:1:1 pattern (finder-like)
     for (let r = 0; r < size; r++) {
+      const row = grid[r]!;
       for (let c = 0; c < size - 10; c++) {
-        if (
-          grid[r][c] &&
-          !grid[r][c + 1] &&
-          grid[r][c + 2] &&
-          grid[r][c + 3] &&
-          grid[r][c + 4] &&
-          !grid[r][c + 5] &&
-          grid[r][c + 6]
-        ) {
-          if (c >= 4 && !grid[r][c - 1] && !grid[r][c - 2] && !grid[r][c - 3] && !grid[r][c - 4]) {
+        if (row[c] && !row[c + 1] && row[c + 2] && row[c + 3] && row[c + 4] && !row[c + 5] && row[c + 6]) {
+          if (c >= 4 && !row[c - 1] && !row[c - 2] && !row[c - 3] && !row[c - 4]) {
             penalty += 40;
-          } else if (c + 10 < size && !grid[r][c + 7] && !grid[r][c + 8] && !grid[r][c + 9] && !grid[r][c + 10]) {
+          } else if (c + 10 < size && !row[c + 7] && !row[c + 8] && !row[c + 9] && !row[c + 10]) {
             penalty += 40;
           }
         }
@@ -651,17 +688,17 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
     for (let c = 0; c < size; c++) {
       for (let r = 0; r < size - 10; r++) {
         if (
-          grid[r][c] &&
-          !grid[r + 1][c] &&
-          grid[r + 2][c] &&
-          grid[r + 3][c] &&
-          grid[r + 4][c] &&
-          !grid[r + 5][c] &&
-          grid[r + 6][c]
+          grid[r]![c] &&
+          !grid[r + 1]![c] &&
+          grid[r + 2]![c] &&
+          grid[r + 3]![c] &&
+          grid[r + 4]![c] &&
+          !grid[r + 5]![c] &&
+          grid[r + 6]![c]
         ) {
-          if (r >= 4 && !grid[r - 1][c] && !grid[r - 2][c] && !grid[r - 3][c] && !grid[r - 4][c]) {
+          if (r >= 4 && !grid[r - 1]![c] && !grid[r - 2]![c] && !grid[r - 3]![c] && !grid[r - 4]![c]) {
             penalty += 40;
-          } else if (r + 10 < size && !grid[r + 7][c] && !grid[r + 8][c] && !grid[r + 9][c] && !grid[r + 10][c]) {
+          } else if (r + 10 < size && !grid[r + 7]![c] && !grid[r + 8]![c] && !grid[r + 9]![c] && !grid[r + 10]![c]) {
             penalty += 40;
           }
         }
@@ -672,7 +709,7 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
     let darkCount = 0;
     for (let r = 0; r < size; r++) {
       for (let c = 0; c < size; c++) {
-        if (grid[r][c]) darkCount++;
+        if (grid[r]![c]) darkCount++;
       }
     }
     const ratio = (darkCount * 100) / (size * size);
@@ -687,14 +724,18 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
   let bestGrid: boolean[][] | null = null;
 
   for (let m = 0; m < 8; m++) {
-    const maskFn = MASK_FNS[m];
+    // m ranges 0..7, matching MASK_FNS' 8 entries exactly.
+    const maskFn = MASK_FNS[m]!;
     const candidate: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
     for (let r = 0; r < size; r++) {
+      const moduleRow = modules[r]!;
+      const functionRow = isFunction[r]!;
+      const candidateRow = candidate[r]!;
       for (let c = 0; c < size; c++) {
-        if (isFunction[r][c]) {
-          candidate[r][c] = modules[r][c] === true;
+        if (functionRow[c]) {
+          candidateRow[c] = moduleRow[c] === true;
         } else {
-          candidate[r][c] = maskFn(r, c) ? !modules[r][c] : modules[r][c] === true;
+          candidateRow[c] = maskFn(r, c) ? !moduleRow[c] : moduleRow[c] === true;
         }
       }
     }
@@ -704,7 +745,7 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
     // significant bit first, per ISO/IEC 18004 figure 25.
     const formatBits = getFormatBits(ecl, m);
     // Copy 1, wrapping the top-left finder pattern.
-    const tlCoords = [
+    const tlCoords: Array<[number, number]> = [
       [0, 8],
       [1, 8],
       [2, 8],
@@ -722,10 +763,12 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
       [8, 0],
     ];
     for (let i = 0; i < 15; i++) {
-      candidate[tlCoords[i][0]][tlCoords[i][1]] = ((formatBits >> i) & 1) === 1;
+      // i < 15 === tlCoords.length.
+      const [tr, tc] = tlCoords[i]!;
+      candidate[tr]![tc] = ((formatBits >> i) & 1) === 1;
     }
     // Copy 2, split between the top-right and bottom-left finder patterns.
-    const splitCoords = [
+    const splitCoords: Array<[number, number]> = [
       [8, size - 1],
       [8, size - 2],
       [8, size - 3],
@@ -743,7 +786,9 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
       [size - 1, 8],
     ];
     for (let i = 0; i < 15; i++) {
-      candidate[splitCoords[i][0]][splitCoords[i][1]] = ((formatBits >> i) & 1) === 1;
+      // i < 15 === splitCoords.length.
+      const [sr, sc] = splitCoords[i]!;
+      candidate[sr]![sc] = ((formatBits >> i) & 1) === 1;
     }
 
     // Write version info if V >= 7
@@ -753,8 +798,8 @@ export function generateQrMatrix(text: string, options: QrMatrixOptions = {}): Q
         const bit = ((vBits >> i) & 1) === 1;
         const r = Math.floor(i / 3);
         const c = (i % 3) + size - 11;
-        candidate[r][c] = bit;
-        candidate[c][r] = bit;
+        candidate[r]![c] = bit;
+        candidate[c]![r] = bit;
       }
     }
 

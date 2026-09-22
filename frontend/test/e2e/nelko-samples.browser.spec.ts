@@ -54,10 +54,12 @@ test("write sample labels", async ({ page }) => {
       lib: { entry, name: "Nelko", formats: ["iife"], fileName: () => "nelko.js" },
     },
   });
-  const output = Array.isArray(result) ? result[0].output : (result as { output: { code: string }[] }).output;
+  // Vite's build() returns a single RollupOutput unless multiple outputs were
+  // configured, which this single lib-mode build never does.
+  const output = Array.isArray(result) ? result[0]!.output : (result as { output: { code: string }[] }).output;
 
   await page.goto("about:blank");
-  await page.addScriptTag({ content: output[0].code });
+  await page.addScriptTag({ content: output[0]!.code });
 
   for (const [name, spec] of Object.entries(SAMPLES)) {
     const { svg, png } = await page.evaluate(async spec => {

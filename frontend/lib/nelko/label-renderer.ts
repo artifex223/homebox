@@ -178,7 +178,8 @@ export function wrapTextLines(
   let currentLine = "";
 
   for (let i = 0; i < words.length; i++) {
-    const word = words[i];
+    // i < words.length, so this element is always present.
+    const word = words[i]!;
     const testLine = currentLine ? `${currentLine} ${word}` : word;
 
     if (measure(testLine, cssFont) <= maxWidth) {
@@ -228,7 +229,8 @@ export function collapseBreadcrumb(ancestors: string[], fallback: string): strin
 
 /** Steps the breadcrumb down 11pt -> 10pt -> 9pt, then truncates with an ellipsis. */
 export function fitBreadcrumb(text: string, measure: TextMeasurer): { text: string; fontPx: number } {
-  let fontPx = ptToPx(BREADCRUMB_PT_TIERS[BREADCRUMB_PT_TIERS.length - 1]);
+  // BREADCRUMB_PT_TIERS is a non-empty literal constant.
+  let fontPx = ptToPx(BREADCRUMB_PT_TIERS[BREADCRUMB_PT_TIERS.length - 1]!);
   for (const pt of BREADCRUMB_PT_TIERS) {
     fontPx = ptToPx(pt);
     if (measureBreadcrumb(text, fontPx, measure) <= BREADCRUMB_MAX_WIDTH) {
@@ -263,7 +265,8 @@ export function fitFooter(
     }
   }
 
-  const fontPx = ptToPx(FOOTER_PT_TIERS[FOOTER_PT_TIERS.length - 1]);
+  // FOOTER_PT_TIERS is a non-empty literal constant.
+  const fontPx = ptToPx(FOOTER_PT_TIERS[FOOTER_PT_TIERS.length - 1]!);
   const domainWidth = measure(domain, monoFont(fontPx));
   const budget = TITLE_MAX_WIDTH - domainWidth - gap;
   return {
@@ -301,7 +304,8 @@ export function layoutTitle(
     return lineCount <= maxLines;
   };
 
-  let chosen = TITLE_TIERS[TITLE_TIERS.length - 1];
+  // TITLE_TIERS is a non-empty literal constant.
+  let chosen = TITLE_TIERS[TITLE_TIERS.length - 1]!;
   for (const tier of TITLE_TIERS) {
     if (fitsCleanly(ptToPx(tier.pt), tier.maxLines)) {
       chosen = tier;
@@ -402,7 +406,8 @@ export function buildLabelSvg(layout: LabelLayout): string {
   const m = layout.qrModulePx;
   for (let r = 0; r < layout.qr.size; r++) {
     for (let c = 0; c < layout.qr.size; c++) {
-      if (layout.qr.modules[r][c]) {
+      // r, c are within 0..layout.qr.size-1, matching the matrix's own dimensions.
+      if (layout.qr.modules[r]![c]) {
         const x = layout.qrOffsetX + c * m;
         const y = layout.qrOffsetY + r * m;
         qrPath += `M${x},${y}h${m}v${m}h-${m}z `;
@@ -414,10 +419,12 @@ export function buildLabelSvg(layout: LabelLayout): string {
 
   let titleSvg = "";
   for (let i = 0; i < layout.titleLines.length; i++) {
+    // titleBaselines is built 1:1 with titleLines (see layoutTitle), so both
+    // are always present for i < titleLines.length.
     titleSvg +=
-      `  <text x="${TITLE_X}" y="${layout.titleBaselines[i]}" clip-path="url(#nelko-title-clip)" font-family='${LABEL_SANS_STACK}' ` +
+      `  <text x="${TITLE_X}" y="${layout.titleBaselines[i]!}" clip-path="url(#nelko-title-clip)" font-family='${LABEL_SANS_STACK}' ` +
       `font-size="${layout.titleFontPx}px" font-weight="bold" fill="#000000">` +
-      `${escapeXml(layout.titleLines[i])}</text>\n`;
+      `${escapeXml(layout.titleLines[i]!)}</text>\n`;
   }
 
   const footerPx = layout.footerFontPx;
@@ -489,11 +496,12 @@ export function luminance(r: number, g: number, b: number): number {
  */
 export function binarizeImageData(data: Uint8ClampedArray): Uint8ClampedArray {
   for (let i = 0; i < data.length; i += 4) {
-    const alpha = data[i + 3] / 255;
+    // RGBA buffer: i, i+1, i+2, i+3 are all within data.length by construction.
+    const alpha = data[i + 3]! / 255;
     // Composite over white before thresholding.
-    const r = data[i] * alpha + 255 * (1 - alpha);
-    const g = data[i + 1] * alpha + 255 * (1 - alpha);
-    const b = data[i + 2] * alpha + 255 * (1 - alpha);
+    const r = data[i]! * alpha + 255 * (1 - alpha);
+    const g = data[i + 1]! * alpha + 255 * (1 - alpha);
+    const b = data[i + 2]! * alpha + 255 * (1 - alpha);
     // Rounded before comparing: the BT.601 coefficients do not sum to exactly
     // 1.0 in binary floating point, which would otherwise push a neutral 128
     // grey a fraction below the threshold and turn it into ink.
@@ -510,7 +518,8 @@ export function binarizeImageData(data: Uint8ClampedArray): Uint8ClampedArray {
 export function toBitPlane(data: Uint8ClampedArray, width: number, height: number): Uint8Array {
   const plane = new Uint8Array(width * height);
   for (let p = 0; p < width * height; p++) {
-    plane[p] = data[p * 4] < 128 ? 0 : 1;
+    // p < width * height, and data has width * height * 4 bytes.
+    plane[p] = data[p * 4]! < 128 ? 0 : 1;
   }
   return plane;
 }
@@ -531,7 +540,8 @@ for (let n = 0; n < 256; n++) {
 function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;
   for (let i = 0; i < bytes.length; i++) {
-    crc = CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+    // i < bytes.length, and (crc ^ byte) & 0xff is always 0..255, within CRC_TABLE.
+    crc = CRC_TABLE[(crc ^ bytes[i]!) & 0xff]! ^ (crc >>> 8);
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
@@ -540,7 +550,8 @@ function adler32(bytes: Uint8Array): number {
   let a = 1;
   let b = 0;
   for (let i = 0; i < bytes.length; i++) {
-    a = (a + bytes[i]) % 65521;
+    // i < bytes.length, so this element is always present.
+    a = (a + bytes[i]!) % 65521;
     b = (b + a) % 65521;
   }
   return ((b << 16) | a) >>> 0;
@@ -590,7 +601,10 @@ async function zlibDeflate(raw: Uint8Array): Promise<Uint8Array> {
   try {
     const stream = new CS("deflate");
     const writer = stream.writable.getWriter();
-    void writer.write(raw);
+    // Uint8Array<ArrayBufferLike> isn't assignable to the stream's
+    // ArrayBuffer-backed BufferSource overloads; copy into a fresh,
+    // plain-ArrayBuffer-backed view (same bytes, no behavior change).
+    void writer.write(new Uint8Array(raw));
     void writer.close();
     const chunks: Uint8Array[] = [];
     const reader = stream.readable.getReader();
@@ -627,8 +641,10 @@ export async function encode1BitPng(plane: Uint8Array, width: number, height: nu
     raw[rowOffset] = 0; // filter type: none
     const planeOffset = y * width;
     for (let x = 0; x < width; x++) {
-      if (plane[planeOffset + x] === 1) {
-        raw[rowOffset + 1 + (x >> 3)] |= 1 << (7 - (x & 7));
+      // planeOffset + x < width * height === plane.length.
+      if (plane[planeOffset + x]! === 1) {
+        // x >> 3 < rowBytes, so rowOffset + 1 + (x >> 3) is within this row's bytes.
+        raw[rowOffset + 1 + (x >> 3)] = raw[rowOffset + 1 + (x >> 3)]! | (1 << (7 - (x & 7)));
       }
     }
   }

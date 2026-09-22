@@ -18,7 +18,7 @@ function decodeMatrix(matrix: QrMatrix, scale = 4, quietModules = 4): string {
 
   for (let r = 0; r < matrix.size; r++) {
     for (let c = 0; c < matrix.size; c++) {
-      if (!matrix.modules[r][c]) continue;
+      if (!matrix.modules[r]![c]) continue;
       for (let dy = 0; dy < scale; dy++) {
         for (let dx = 0; dx < scale; dx++) {
           const x = (c + quietModules) * scale + dx;
@@ -63,24 +63,24 @@ describe("generateQrMatrix", () => {
     ];
     for (const [r0, c0] of corners) {
       // Outer ring dark, inner ring light, 3x3 core dark.
-      expect(modules[r0][c0]).toBe(true);
-      expect(modules[r0 + 1][c0 + 1]).toBe(false);
-      expect(modules[r0 + 3][c0 + 3]).toBe(true);
-      expect(modules[r0 + 6][c0 + 6]).toBe(true);
+      expect(modules[r0]![c0]).toBe(true);
+      expect(modules[r0 + 1]![c0 + 1]).toBe(false);
+      expect(modules[r0 + 3]![c0 + 3]).toBe(true);
+      expect(modules[r0 + 6]![c0 + 6]).toBe(true);
     }
   });
 
   test("timing patterns alternate along row and column 6", () => {
     const { modules, size } = generateQrMatrix(LOCATION_URL, { ecl: "M", minVersion: 5 });
     for (let i = 8; i < size - 8; i++) {
-      expect(modules[6][i]).toBe(i % 2 === 0);
-      expect(modules[i][6]).toBe(i % 2 === 0);
+      expect(modules[6]![i]).toBe(i % 2 === 0);
+      expect(modules[i]![6]).toBe(i % 2 === 0);
     }
   });
 
   test("the fixed dark module is set", () => {
     const matrix = generateQrMatrix(LOCATION_URL, { ecl: "M", minVersion: 5 });
-    expect(matrix.modules[4 * matrix.version + 9][8]).toBe(true);
+    expect(matrix.modules[4 * matrix.version + 9]![8]).toBe(true);
   });
 
   test.each([

@@ -467,12 +467,14 @@ describe("encode1BitPng", () => {
     const chunks = readChunks(png);
     expect(chunks.map(c => c.type)).toEqual(["IHDR", "IDAT", "IEND"]);
 
-    const ihdr = new DataView(chunks[0].data.buffer, chunks[0].data.byteOffset, 13);
+    // The prior assertion guarantees chunks has exactly 3 entries (IHDR, IDAT, IEND).
+    const ihdrChunk = chunks[0]!;
+    const ihdr = new DataView(ihdrChunk.data.buffer, ihdrChunk.data.byteOffset, 13);
     expect(ihdr.getUint32(0)).toBe(LABEL_WIDTH);
     expect(ihdr.getUint32(4)).toBe(LABEL_HEIGHT);
-    expect(chunks[0].data[8]).toBe(1); // bit depth 1
-    expect(chunks[0].data[9]).toBe(0); // greyscale
-    expect(chunks[0].data[12]).toBe(0); // no interlacing
+    expect(ihdrChunk.data[8]).toBe(1); // bit depth 1
+    expect(ihdrChunk.data[9]).toBe(0); // greyscale
+    expect(ihdrChunk.data[12]).toBe(0); // no interlacing
   });
 
   test("round-trips the bit plane through a real zlib inflater", async () => {
@@ -491,9 +493,11 @@ describe("encode1BitPng", () => {
     expect(raw.length).toBe(height * (1 + rowBytes));
     for (let y = 0; y < height; y++) {
       const rowOffset = y * (1 + rowBytes);
+      // rowOffset and every rowOffset + 1 + (x >> 3) below are within raw's
+      // asserted length (height * (1 + rowBytes)).
       expect(raw[rowOffset]).toBe(0); // filter: none
       for (let x = 0; x < width; x++) {
-        const bit = (raw[rowOffset + 1 + (x >> 3)] >> (7 - (x & 7))) & 1;
+        const bit = (raw[rowOffset + 1 + (x >> 3)]! >> (7 - (x & 7))) & 1;
         expect(bit, `pixel ${x},${y}`).toBe(plane[y * width + x]);
       }
     }
@@ -520,7 +524,8 @@ describe("encode1BitPng", () => {
       const length = view.getUint32(offset);
       const body = png.subarray(offset + 4, offset + 8 + length);
       let crc = 0xffffffff;
-      for (const byte of body) crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+      // (crc ^ byte) & 0xff is always 0..255, within the 256-entry table.
+      for (const byte of body) crc = table[(crc ^ byte) & 0xff]! ^ (crc >>> 8);
       expect(view.getUint32(offset + 8 + length)).toBe((crc ^ 0xffffffff) >>> 0);
       offset += 12 + length;
     }

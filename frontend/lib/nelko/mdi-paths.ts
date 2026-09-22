@@ -706,7 +706,8 @@ export function resolveIcon(
 /** Returns the 24 x 24 path data for a slug, falling back to the archive glyph. */
 export function getIconPath(slug: string | null | undefined): string {
   const normalized = normalizeIconSlug(slug);
-  return MDI_PATHS[normalized] ?? MDI_PATHS["archive-outline"];
+  // "archive-outline" is always defined in MDI_PATHS below; it's the ultimate fallback glyph.
+  return MDI_PATHS[normalized] ?? MDI_PATHS["archive-outline"]!;
 }
 
 /** Whether a freeform slug typed into the modal resolves to a known glyph. */
