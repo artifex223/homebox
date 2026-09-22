@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nicholas-fedor/shoutrrr"
+	shoutrrrtypes "github.com/nicholas-fedor/shoutrrr/pkg/types"
 	"github.com/rs/zerolog/log"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/repo"
 	"github.com/sysadminsmedia/homebox/backend/internal/data/types"
@@ -91,10 +92,18 @@ func (svc *BackgroundService) SendNotifiersToday(ctx context.Context) error {
 				continue
 			}
 
-			err := shoutrrr.Send(notifiers[i].URL, bldr.String())
-
+			sender, err := shoutrrr.NewSenderWithOptions(
+				nil,
+				shoutrrrtypes.SenderOptions{HTTPClient: validate.NotifierGuardedHTTPClient(svc.notifierConfig)},
+				notifiers[i].URL,
+			)
 			if err != nil {
-				sendErrs = append(sendErrs, err)
+				sendErrs = append(sendErrs, fmt.Errorf("notifier %s: %w", notifiers[i].Name, err))
+				continue
+			}
+
+			if errs := sender.Send(bldr.String(), nil); errs[0] != nil {
+				sendErrs = append(sendErrs, errs[0])
 			}
 		}
 

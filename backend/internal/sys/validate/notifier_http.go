@@ -11,22 +11,19 @@ import (
 // default so behavior is unchanged for legitimate redirect chains.
 const maxNotifierRedirects = 10
 
-// InstallNotifierRedirectGuard hardens http.DefaultClient so redirects are
+// NotifierGuardedHTTPClient returns an *http.Client whose redirects are
 // re-validated against the notifier SSRF policy on every hop.
 //
-// shoutrrr's generic service performs its HTTP request with http.DefaultClient and
-// no CheckRedirect hook, so a host that passes the initial ValidateNotifierURL gate
-// can respond with a 30x redirect to localhost / link-local / cloud-metadata / any
-// other blocked destination, and the follow-up hop is delivered without re-checking
-// the policy — bypassing the SSRF guards. Re-validating each hop closes that hole.
-//
-// This affects every http.DefaultClient consumer in the process, but in Homebox
-// that is only shoutrrr: all other outbound HTTP clients (labelmaker, analytics,
-// otel, product search, the GitHub release check) are constructed explicitly. The
-// guard only rejects redirects whose target is blocked by policy; ordinary
-// redirects to permitted hosts continue to be followed.
-func InstallNotifierRedirectGuard(cfg *config.NotifierConf) {
-	http.DefaultClient.CheckRedirect = NotifierRedirectGuard(cfg)
+// shoutrrr's generic service builds its own bare &http.Client{} per request
+// rather than using http.DefaultClient, so a host that passes the initial
+// ValidateNotifierURL gate could otherwise respond with a 30x redirect to
+// localhost / link-local / cloud-metadata / any other blocked destination,
+// and the follow-up hop would be delivered without re-checking the policy —
+// bypassing the SSRF guards. Callers must pass this client explicitly to
+// shoutrrr (e.g. via shoutrrr.NewSenderWithOptions with
+// types.SenderOptions{HTTPClient: ...}); it is not picked up implicitly.
+func NotifierGuardedHTTPClient(cfg *config.NotifierConf) *http.Client {
+	return &http.Client{CheckRedirect: NotifierRedirectGuard(cfg)}
 }
 
 // NotifierRedirectGuard returns an http.Client CheckRedirect hook that refuses any

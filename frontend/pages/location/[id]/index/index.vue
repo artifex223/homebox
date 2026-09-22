@@ -75,9 +75,7 @@
     const list = [{ name: "Locations", path: "/locations" }];
     if (pathItems.value) {
       // Only display locations in the parent path, exclude any item leaf nodes
-      const locationsPath = pathItems.value.filter(
-        p => p.type === "location" && p.id !== locationId.value
-      );
+      const locationsPath = pathItems.value.filter(p => p.type === "location" && p.id !== locationId.value);
       for (const node of locationsPath) {
         list.push({
           name: node.name,
@@ -292,7 +290,7 @@
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                   </template>
-                  <BreadcrumbItem class="text-foreground font-medium"> {{ location.name }} </BreadcrumbItem>
+                  <BreadcrumbItem class="font-medium text-foreground"> {{ location.name }} </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
               <h1 class="flex items-center gap-3 pb-1 text-2xl">

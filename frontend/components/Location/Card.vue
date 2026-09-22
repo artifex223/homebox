@@ -3,12 +3,7 @@
   <Card class="relative overflow-hidden">
     <NuxtLink :to="`/location/${location.id}`" class="group/location-card transition duration-300">
       <div v-if="imageUrl" class="relative h-[140px]">
-        <img
-          class="absolute h-[140px] w-full object-cover blur-md"
-          loading="lazy"
-          :src="imageUrl"
-          alt=""
-        />
+        <img class="absolute h-[140px] w-full object-cover blur-md" loading="lazy" :src="imageUrl" alt="" />
         <img
           class="absolute h-[140px] w-full object-cover shadow-md"
           loading="lazy"
@@ -83,4 +78,3 @@
     return hasCount.value ? (props.location as EntitySummary).itemCount : undefined;
   });
 </script>
-
