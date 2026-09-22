@@ -164,5 +164,3 @@
     </BaseCard>
   </BaseContainer>
 </template>
-
-

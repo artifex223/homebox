@@ -327,7 +327,7 @@
 
   onMounted(() => {
     syncTriageCount();
-    window.addEventListener("storage", (e) => {
+    window.addEventListener("storage", e => {
       if (e.key === "homebox/triage/count") {
         syncTriageCount();
       }

@@ -6,7 +6,9 @@
   import { toast } from "@/components/ui/sonner";
   import MdiLoading from "~icons/mdi/loading";
   import MdiPrinterPos from "~icons/mdi/printer-pos";
+  import MdiPrinterPosStar from "~icons/mdi/printer-pos-star";
   import MdiFileDownload from "~icons/mdi/file-download";
+  import NelkoLabelModal from "./NelkoLabelModal.vue";
 
   import {
     Dialog,
@@ -41,6 +43,9 @@
   });
 
   const serverPrinting = ref(false);
+  // Read via `.value` in script rather than optional-chaining the ref
+  // directly in the template, which vue-tsc cannot type-narrow through.
+  const labelPrintingAvailable = computed(() => status.value?.labelPrinting ?? false);
 
   function browserPrint() {
     const printWindow = window.open(getLabelUrl(false), "popup=true");
@@ -112,7 +117,7 @@
         <img :src="getLabelUrl(false)" />
         <DialogFooter>
           <ButtonGroup>
-            <Button v-if="status?.labelPrinting || false" type="submit" :disabled="serverPrinting" @click="serverPrint">
+            <Button v-if="labelPrintingAvailable" type="submit" :disabled="serverPrinting" @click="serverPrint">
               <MdiLoading v-if="serverPrinting" class="animate-spin" />
               {{ $t("components.global.label_maker.server_print") }}
             </Button>
@@ -123,6 +128,8 @@
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <NelkoLabelModal :id="props.id" :type="props.type" />
 
     <TooltipProvider :delay-duration="0">
       <ButtonGroup>
@@ -149,6 +156,17 @@
           </TooltipTrigger>
           <TooltipContent>
             {{ $t("components.global.label_maker.browser_print") }}
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button size="icon" @click="openDialog(DialogID.NelkoLabel)">
+              <MdiPrinterPosStar name="mdi-printer-pos-star" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {{ $t("components.global.label_maker.nelko_print") }}
           </TooltipContent>
         </Tooltip>
 

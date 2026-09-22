@@ -159,6 +159,7 @@
                 "browser_print": "Print from Browser",
                 "confirm_description": "Are you sure you want to print this label?",
                 "download": "Download Label",
+                "nelko_print": "Nelko Thermal Label",
                 "print": "Print label",
                 "server_print": "Print on Server",
                 "titles": "Labels",
@@ -166,6 +167,27 @@
                     "load_status_failed": "Failed to load status",
                     "print_failed": "Failed to print label",
                     "print_success": "Label printed"
+                }
+            },
+            "nelko_label": {
+                "apply": "Apply",
+                "custom_icon": "Custom MDI Icon Slug",
+                "description": "Generate a 400 x 240 px 1-bit monochrome label for the Nelko PM220 thermal printer.",
+                "download_png": "Download 1-Bit PNG",
+                "download_svg": "Download SVG",
+                "icon": "Category Icon",
+                "icon_empty": "No matching icon",
+                "icon_search": "Search icons",
+                "loading": "Loading entity details",
+                "preview_alt": "Nelko thermal label preview",
+                "save_default": "Save as the default icon for this entity",
+                "title": "Nelko Thermal Label",
+                "toast": {
+                    "icon_save_failed": "Failed to save the default icon",
+                    "icon_saved": "Default icon saved",
+                    "load_failed": "Failed to load entity details",
+                    "render_failed": "Failed to render the label",
+                    "unknown_icon": "Unknown MDI icon: { slug }"
                 }
             },
             "page_qr_code": {
@@ -412,11 +434,11 @@
                 "default_template": "Default template: {name}",
                 "badge_container": "Container",
                 "tooltip": {
-                "edit": "Edit",
-                "delete": "Delete"
+                    "edit": "Edit",
+                    "delete": "Delete"
                 },
                 "actions": {
-                "delete": "Delete"
+                    "delete": "Delete"
                 }
             },
             "toasts": {
